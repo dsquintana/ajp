@@ -1,0 +1,62 @@
+# Here we provide a companion script describing an analysis of a two-year sample of journal publications.
+# This document contains the script used for downloading altmetrics data and performing the binomial test.
+# The script assumes that the datafiles are located in the R working directory.
+
+# The following line will clear all variables in your current RStudio working environment
+rm(list = ls())
+
+# Set your working directory
+setwd("/Users/dsquintana/Dropbox/uio/projects/Twitter JAMA/AMJ/amj_analysis") # Replace this by the path of your working directory
+
+# Source the functions used in this script
+source("scripts/signTest.R") 
+source("scripts/checkPackageInstall.R") 
+
+# Load the required packages (install if needed)
+packageVec <- c("ggplot2", "RColorBrewer", "scales", "cowplot", "rAltmetric", "plyr", "lubridate")
+for (p in packageVec)
+{
+    checkPackageInstall(p)      
+}
+
+#Scraping almetrics data. Note: You may need to split data scraping into smaller portions if you are being rate limited. See this page for more details - http://api.altmetric.com. Check the following for explanation of output: http://api.altmetric.com/docs/call_citations.html
+
+# Read in Web of Science (WoS) data. Here we assume that the WoS data has been downloaded and saved as .csv file. The WoS file contains a list of all articles published in a journal over a given time period with DOIs and citations (among other data)
+wos <- read.csv("data/dois_AJP.csv",header = T,sep=";",na.strings = "")
+wos <- subset(wos,wos$DOI!="NA")
+names(wos)[which(names(wos)=="DOI")] <- "doi"
+wos$doi <- toupper(as.character(wos$doi))
+
+# Get almetric data. This following script first checks if predownloaded file exists. 
+if (file.exists("data/almetric.downloadedOct202015.RData"))
+{
+  load("data/almetric.downloadedOct202015.RData")
+} else {
+  almetric <- llply(sprintf("doi/%s",wos$doi), altmetrics, .progress = 'text')
+}
+
+jmetric <- ldply(almetric, altmetric_data)
+jmetric$doi <- toupper(as.character(jmetric$doi)) # converts lowercase "x" to uppercase "X"
+
+# Merge WoS and Almetric data
+df <- merge(wos,jmetric,by="doi")
+
+# Convert the dates from POSIX format into an understandable format (year, month, day)
+df$dateAdded <- as.Date(as.POSIXct(df$added_on, origin="1970-01-01"))
+
+# Order the data according to date the paper was first indexed by Altmetric
+df <- arrange(df,dateAdded)
+df$cited_by_tweeters_count[is.na(df$cited_by_tweeters_count)] <- 0 
+
+# Perform the sign test as described in Thelwall et al., 2013 (http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0064841). This test compares a given publication against the publications that chronologically appeared immediately prior and after it. A "successful" test occurs when the number of tweet mentions and citations for a given publication are both higher (or both lower) than the average of tweets mentions and citations of the two adjacent articles. A "null" result can occur when comparisons with adjacent articles yield an equal score. 
+df$signTest <- signTest(ref = df$Total.Citations,score = df$cited_by_tweeters_count)
+
+View(df) # View whole datafile
+
+# Perform the binomial test
+signTestRes <- as.data.frame(summary(as.factor(df$signTest)))
+bt <- binom.test(c(signTestRes["success",],signTestRes["fail",])) 
+
+(bt) # Prints the binomial test result
+
+summary(as.factor(df$signTest)) # Prints a summary of the sign test
