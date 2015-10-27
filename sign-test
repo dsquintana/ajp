@@ -1,0 +1,19 @@
+signTest <- function (ref,score)
+{
+  # 
+  # The sign test as described in Thelwall et al., 2013 (http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0064841). This test compares a given publication against the publications that chronologically appeared immediately prior and after it. A "successful" test occurs when the number of tweet mentions and citations for a given publication are both higher (or both lower) than the average of tweets mentions and citations of the two adjacent articles. A "null" result can occur when comparisons with adjacent articles yield an equal score.
+  # NA is used to code for "null"
+  res <- rep(NA,length(score))
+  for (n in 2:(length(score)-1))
+  {
+      comp <- (ref[n] - (ref[n+1]+ref[n-1])) * (score[n] - (score[n+1]+score[n-1]))
+      if (comp > 0) {
+          res[n] <- "success"      
+      } else if ( comp < 0) {
+          res[n] <- "fail"
+      } else {
+          res[n] <- NA
+      }
+  }
+  return(res)
+}
