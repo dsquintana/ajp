@@ -1,6 +1,8 @@
 # Twitter Article Mentions and Citations
 
-A companion R script implementing the analysis described in Quintana and Doan (under review). 
+A companion R script implementing the analysis described in Quintana and Doan (2016). 
+
+Quintana, D.S., and Doan N.T. (2016) "Twitter Article Mentions and Citations: An Exploratory Analysis of Publications in the American Journal of Psychiatry." American Journal of Psychiatry, 173(2), p. 194
 
 # Summary
 
